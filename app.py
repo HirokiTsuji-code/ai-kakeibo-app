@@ -193,29 +193,39 @@ if not st.session_state["logged_in"]:
                         st.error("そのユーザー名は既に使用されています。")
 
 else:
-    # --- 🏠 メイン画面（ログイン成功後） ---
+    # ----------------------------------------
+    # 🏠 メイン画面（ログイン成功後）
+    # ----------------------------------------
     current_user = st.session_state["current_user"]
-    
     st.title(f"🛡️ AI家計簿システム - {current_user} さんのダッシュボード")
     
-    # ログアウトボタンをサイドバーの上部に追加
     if st.sidebar.button("ログアウト"):
         st.session_state["logged_in"] = False
         st.session_state["current_user"] = ""
         st.rerun()
 
-    st.sidebar.divider() # 区切り線
-
-    # --- サイドバー：収入・目標管理 ---
+    st.sidebar.divider()
+    
+    # --- 収支設定 ---
     st.sidebar.header("💰 収支設定")
     monthly_income = st.sidebar.number_input("あなたの月収（円）", value=250000, step=1000)
     target_savings = st.sidebar.number_input("月間の貯金目標（円）", value=50000, step=1000)
     allowable_expense = monthly_income - target_savings
 
-    # --- メイン：OCRセクション ---
-    col_upload, col_history = st.columns([1, 1])
+    st.sidebar.divider()
 
-    with col_upload:
+    # 🌟 新機能：ページ切り替えメニュー
+    st.sidebar.header("📂 メニュー")
+    page = st.sidebar.radio("表示する画面を選んでください", ["📝 記録・読み取り", "📊 分析・カレンダー"])
+
+
+    # --- メイン：OCRセクション ---
+
+    # ==========================================
+    # ページ1：記録・読み取り画面
+    # ==========================================
+
+    if page == "📝 記録・読み取り":
         st.subheader("📸 レシート・履歴の読み取り")
         mode = st.radio("読み取り対象を選択", ["レシート（合計1つ）", "PayPay履歴（リスト合計）"])
     
@@ -450,7 +460,11 @@ else:
                 st.session_state["pending_transactions"] = [] # 一時データを消去
                 st.rerun() # 画面をリロードしてグラフを更新
 
-    with col_history:
+    # ==========================================
+    # ページ2：分析・カレンダー画面
+    # ==========================================
+    
+    elif page == "📊 分析・カレンダー":
         st.subheader("📈 支出履歴と分析")
         df_history = load_data(current_user)
     
