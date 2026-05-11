@@ -302,11 +302,15 @@ else:
                                 left_part = match.group(1).strip()
                                 price_str = match.group(2).replace(',', '')
                             
-                                # 一時記憶があり、左側が@等で始まるか空白なら結合
-                                if temp_item_name and (not left_part or re.search(r'^[@＠\d]', left_part)):
-                                    item_name = f"{temp_item_name} {left_part}".strip()
+                                # 🌟 ドンキの2段表記（「3コ X 単」など）に対応
+                                # 左側が空、もしくは「@」「数字」「コ」などで始まる場合は前の行の名前(temp_item_name)を採用
+                                if temp_item_name and (not left_part or re.search(r'^[@＠\dコX×単]', left_part)):
+                                    item_name = temp_item_name
                                 else:
                                     item_name = left_part
+                                
+                                # ドンキ特有の「*」や「☆」などの先頭の余計な記号を綺麗に消す
+                                item_name = re.sub(r'^[\*※☆\s]+', '', item_name)
                             
                                 # 商品名が空白でない場合のみリストに追加
                                 if item_name:
@@ -316,7 +320,9 @@ else:
                             
                             else:
                                 # 「¥」がない行は次の商品名かもしれないのでキープ
-                                temp_item_name = line
+                                # 🌟 ただし、JANコード（数字とアルファベットだけの行）や「割引」の行は無視する
+                                if not re.match(r'^[0-9A-Za-z\-]+$', line) and "割引" not in line:
+                                    temp_item_name = line
                     
                         # --- 結果の表示とスマート保存 ---
                         if purchases or total_amount > 0:
