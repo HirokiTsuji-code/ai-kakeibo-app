@@ -105,10 +105,10 @@ def save_store_dict(user_name, store, category):
     df.to_csv(dict_file, index=False)
 
 def ocr_with_vision_api(uploaded_file):
-    # APIキーを設定（※本来は直接書かず、隠すのがベストですが、まずはテスト用）
+    # APIキーを設定（
     API_KEY = st.secrets["GOOGLE_API_KEY"]
     
-    # ファイルの読み取り位置を先頭に戻す（以前学んだ必須テクニック）
+    # ファイルの読み取り位置を先頭に戻す
     uploaded_file.seek(0)
     content = uploaded_file.read()
     
