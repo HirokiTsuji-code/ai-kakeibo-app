@@ -1,0 +1,12 @@
+# .gitignore
+
+# データベースファイル（個人情報を含めるため記録しない）
+*.csv
+
+# Pythonの仮想環境や一時ファイル
+venv/
+__pycache__/
+.DS_Store
+
+# .gitignore の追加分
+.streamlit/
