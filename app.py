@@ -463,7 +463,7 @@ else:
     # ==========================================
     # ページ2：分析・カレンダー画面
     # ==========================================
-    
+
     elif page == "📊 分析・カレンダー":
         st.subheader("📈 支出履歴と分析")
         df_history = load_data(current_user)
@@ -491,7 +491,7 @@ else:
         else:
             st.info("データがまだありません。レシートを読み取ってください。")
 
-    if not df_history.empty:
+        if not df_history.empty:
             df_history['date'] = pd.to_datetime(df_history['date'])
             current_month = datetime.now().month
             this_month_df = df_history[df_history['date'].dt.month == current_month]
@@ -553,75 +553,75 @@ else:
             else:
                 st.info("今月の記録はまだありません。")
 
-    # --- 月ごとの集計グラフ (安定表示版) ---
-    if not df_history.empty:
-        st.divider()
-        st.subheader("🗓️ 月別支出推移")
+        # --- 月ごとの集計グラフ (安定表示版) ---
+        if not df_history.empty:
+            st.divider()
+            st.subheader("🗓️ 月別支出推移")
 
-        # 1. データの集計
-        # 一度集計してから、date列を「グラフが読みやすい形式」に作り直します
-        monthly_summary = df_history.resample('ME', on='date').sum().reset_index()
+            # 1. データの集計
+            # 一度集計してから、date列を「グラフが読みやすい形式」に作り直します
+            monthly_summary = df_history.resample('ME', on='date').sum().reset_index()
     
-        # 【ここが重要！】date列を「2026-04-01」のような標準的な日付形式に強制変換
-        monthly_summary['date'] = monthly_summary['date'].dt.to_period('M').dt.to_timestamp()
+            # 【ここが重要！】date列を「2026-04-01」のような標準的な日付形式に強制変換
+            monthly_summary['date'] = monthly_summary['date'].dt.to_period('M').dt.to_timestamp()
 
-        # 2. 支出の棒グラフ
-        bars = alt.Chart(monthly_summary).mark_bar(
-            color='#4682b4', # 落ち着いた青色
-            size=40          # 棒を少し太くして存在感を出す
-        ).encode(
-            x=alt.X('date:T', title='月', axis=alt.Axis(format='%Y/%m', labelAngle=0)),
-            y=alt.Y('amount:Q', title='支出額 (円)'),
-            tooltip=[
-                alt.Tooltip('date:T', title='月', format='%Y/%m'),
-                alt.Tooltip('amount:Q', title='支出額', format=',d')
-            ]
-        )
-
-        # 3. 予算の赤ライン（目標金額）
-        yield_df = pd.DataFrame({'threshold': [allowable_expense]})
-        rule = alt.Chart(yield_df).mark_rule(
-            color='#e45756', # 警告をイメージする赤色
-            strokeDash=[5, 5],
-            size=2
-        ).encode(
-            y='threshold:Q'
-        )
-
-        # 4. 合体させて表示
-        # 縦軸の範囲を、支出が少なくても「予算ライン」まで見えるように自動調整
-        combined_chart = (bars + rule).properties(
-            height=400
-        ).interactive() # 拡大・縮小もできるようにする
-
-        st.write(monthly_summary)
-
-        st.altair_chart(combined_chart, use_container_width=True)
-
-    # --- これまでの円グラフや履歴表示のコードの下に追加 ---
-        
-        st.divider()
-        st.subheader("✏️ 履歴の編集・削除")
-        
-        # 画面が長くなりすぎないよう、エキスパンダー（折りたたみメニュー）の中に入れる
-        with st.expander("過去の記録を直接編集する"):
-            st.info("💡 【操作方法】\n"
-                    "・**編集**: セルをダブルクリックして直接書き換えます。\n"
-                    "・**削除**: 行の左端にあるチェックボックスを選択し、キーボードの「Delete」キーを押します。")
-            
-            # Streamlitの強力なデータエディター機能
-            # num_rows="dynamic" にすることで、行の追加・削除が可能になります
-            edited_df = st.data_editor(
-                df_history,
-                num_rows="dynamic",
-                use_container_width=True,
-                key="history_editor"
+            # 2. 支出の棒グラフ
+            bars = alt.Chart(monthly_summary).mark_bar(
+                color='#4682b4', # 落ち着いた青色
+                size=40          # 棒を少し太くして存在感を出す
+            ).encode(
+                x=alt.X('date:T', title='月', axis=alt.Axis(format='%Y/%m', labelAngle=0)),
+                y=alt.Y('amount:Q', title='支出額 (円)'),
+                tooltip=[
+                    alt.Tooltip('date:T', title='月', format='%Y/%m'),
+                    alt.Tooltip('amount:Q', title='支出額', format=',d')
+                ]
             )
+
+            # 3. 予算の赤ライン（目標金額）
+            yield_df = pd.DataFrame({'threshold': [allowable_expense]})
+            rule = alt.Chart(yield_df).mark_rule(
+                color='#e45756', # 警告をイメージする赤色
+                strokeDash=[5, 5],
+                size=2
+            ).encode(
+                y='threshold:Q'
+            )
+
+            # 4. 合体させて表示
+            # 縦軸の範囲を、支出が少なくても「予算ライン」まで見えるように自動調整
+            combined_chart = (bars + rule).properties(
+                height=400
+            ).interactive() # 拡大・縮小もできるようにする
+
+            st.write(monthly_summary)
+
+            st.altair_chart(combined_chart, use_container_width=True)
+
+        # --- これまでの円グラフや履歴表示のコードの下に追加 ---
+        
+            st.divider()
+            st.subheader("✏️ 履歴の編集・削除")
+        
+            # 画面が長くなりすぎないよう、エキスパンダー（折りたたみメニュー）の中に入れる
+            with st.expander("過去の記録を直接編集する"):
+                st.info("💡 【操作方法】\n"
+                        "・**編集**: セルをダブルクリックして直接書き換えます。\n"
+                        "・**削除**: 行の左端にあるチェックボックスを選択し、キーボードの「Delete」キーを押します。")
             
-        # 保存ボタンが押されたら、編集後のデータフレームでCSVを丸ごと上書きする
-        if st.button("変更をデータベースに保存", type="primary"):
-            target_file = get_db_filename(current_user)
-            # 編集されたデータをCSVとして上書き保存
-            edited_df.to_csv(target_file, index=False)
-            st.success("✅ データベースを更新しました！")
-            st.rerun() # 画面をリロードして、上のグラフや予算計算にも反映させる
+                # Streamlitの強力なデータエディター機能
+                # num_rows="dynamic" にすることで、行の追加・削除が可能になります
+                edited_df = st.data_editor(
+                    df_history,
+                    num_rows="dynamic",
+                    use_container_width=True,
+                    key="history_editor"
+                )
+            
+            # 保存ボタンが押されたら、編集後のデータフレームでCSVを丸ごと上書きする
+            if st.button("変更をデータベースに保存", type="primary"):
+                target_file = get_db_filename(current_user)
+                # 編集されたデータをCSVとして上書き保存
+                edited_df.to_csv(target_file, index=False)
+                st.success("✅ データベースを更新しました！")
+                st.rerun() # 画面をリロードして、上のグラフや予算計算にも反映させる
