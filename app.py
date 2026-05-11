@@ -8,6 +8,7 @@ import altair as alt
 from google.cloud import vision
 from google.api_core.client_options import ClientOptions
 import hashlib # パスワード暗号化のための標準ライブラリ
+from streamlit_calendar import calendar
 
 USER_DB_FILE = "users.csv" # ユーザー情報を保存するファイル
 
@@ -503,6 +504,40 @@ else:
                 # 履歴も表示
                 st.write("直近の記録")
                 st.dataframe(df_history.tail(5), use_container_width=True)
+
+            st.divider()
+            st.subheader("📅 今月の支出カレンダー")
+
+            if not this_month_df.empty:
+                # 1. 同じ日に複数回の買い物がある場合、日付ごとに合計金額をまとめる
+                daily_summary = this_month_df.groupby(this_month_df['date'].dt.strftime('%Y-%m-%d'), as_index=False)['amount'].sum()
+
+                # 2. カレンダーに表示する「イベント」のデータを作成する
+                calendar_events = []
+                for _, row in daily_summary.iterrows():
+                    calendar_events.append({
+                        "title": f"¥ {int(row['amount']):,}", # カレンダーのマスに表示する文字（金額）
+                        "start": row['date'],                 # 日付
+                        "color": "#FF4B4B",                   # イベントの色（Streamlitのテーマカラーの赤）
+                        "display": "block"
+                    })
+
+                # 3. カレンダーの見た目や動作の設定（プロフェッショナルなUI設計）
+                calendar_options = {
+                    "headerToolbar": {
+                        "left": "today prev,next",
+                        "center": "title",
+                        "right": "dayGridMonth"
+                    },
+                    "initialView": "dayGridMonth",
+                    "locale": "ja", # 【重要】カレンダーを日本語化する魔法の設定
+                }
+
+                # 4. カレンダーを画面に描画する
+                calendar(events=calendar_events, options=calendar_options)
+
+            else:
+                st.info("今月の記録はまだありません。")
 
     # --- 月ごとの集計グラフ (安定表示版) ---
     if not df_history.empty:
