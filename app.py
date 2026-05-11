@@ -9,6 +9,7 @@ from google.cloud import vision
 from google.api_core.client_options import ClientOptions
 import hashlib # パスワード暗号化のための標準ライブラリ
 from streamlit_calendar import calendar
+import urllib.parse
 
 USER_DB_FILE = "users.csv" # ユーザー情報を保存するファイル
 
@@ -341,6 +342,19 @@ else:
                                 st.success(f"✅ {receipt_category} として記録しました！")
                                 st.info("✅ 明細をメモとして記録し、合計金額のみを支出として家計簿に追加しました。")
 
+                                # --- 🌟 ここから共有機能を追加 ---
+                                st.divider()
+                                # 送信するテキストを作成
+                                share_text = f"🧾 支出を記録しました！\n日付: {receipt_date or '今日'}\n項目: {details_text}\n金額: ¥{total_amount:,}\nカテゴリ: {receipt_category}"
+                                # テキストをURLで送れる形式に変換（URLエンコード）
+                                encoded_text = urllib.parse.quote(share_text)
+                                # LINEの共有用URLを作成
+                                line_url = f"https://line.me/R/msg/text/?{encoded_text}"
+                              
+                                # Streamlitのリンクボタンを表示
+                                st.link_button("💬 この記録をLINEで家族に共有", line_url, type="primary")
+                                # --------------------------------
+
                         else:
                             st.warning("商品と金額のペアが見つかりませんでした。")
 
@@ -455,8 +469,19 @@ else:
                     save_data(current_user, t["item"], t["amount"], t["category"], t.get("date"))
                     # 辞書に学習させて、次回から自動分類させる
                     save_store_dict(current_user, t["item"], t["category"])
+                    total_paypay_amount += t["amount"] # 🌟 金額を足していく
                 
                 st.success("すべての記録と学習が完了しました！")
+
+                # --- 🌟 ここから共有機能を追加 ---
+                st.divider()
+                paypay_count = len(updated_transactions)
+                share_text_paypay = f"📱 PayPay等の決済を記録しました！\n件数: {paypay_count}件\n合計金額: ¥{total_paypay_amount:,}\n※詳細はアプリのダッシュボードを確認してね。"
+                encoded_text_paypay = urllib.parse.quote(share_text_paypay)
+                line_url_paypay = f"https://line.me/R/msg/text/?{encoded_text_paypay}"
+            
+                st.link_button("💬 このまとめをLINEで家族に共有", line_url_paypay, type="primary")
+            # --------------------------------
                 st.session_state["pending_transactions"] = [] # 一時データを消去
                 st.rerun() # 画面をリロードしてグラフを更新
 
