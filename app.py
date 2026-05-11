@@ -58,16 +58,21 @@ def load_data(user_name):
         # ファイルがない（初めてのユーザー）場合は空の表を作る # 【追加】category 列を追加
         return pd.DataFrame(columns=["date", "item", "amount", "category"])
 
-def save_data(user_name, item_name, amount, category): # 引数に category を追加
+# --- データの読み込み・保存（引数に transaction_date を追加） ---
+def save_data(user_name, item_name, amount, category, transaction_date=None):
     target_file = get_db_filename(user_name)
     df = load_data(user_name)
     clean_amount = int(amount)
     
+    # もし日付が指定されていなければ「今日」にする（手動入力などのバックアップ用）
+    if not transaction_date:
+        transaction_date = datetime.now().strftime("%Y-%m-%d")
+        
     new_data = pd.DataFrame({
-        "date": [datetime.now().strftime("%Y-%m-%d")], 
+        "date": [transaction_date], 
         "item": [item_name],
-        "amount": [clean_amount] ,
-        "category": [category] # カテゴリも保存
+        "amount": [clean_amount],
+        "category": [category]
     })
     
     df = pd.concat([df, new_data], ignore_index=True)
@@ -242,18 +247,23 @@ else:
                     raw_text = ocr_with_vision_api(uploaded_file)
             
                 if raw_text:
-                    st.write("【AIが読み取った全文】")
-                    with st.expander("テキストを確認する"):
-                        st.text(raw_text) # どのような規則性があるか確認用
-
-                    # 読み取ったテキストを「改行」で分割してリストにする
                     lines = raw_text.split('\n')
                 
-                    # --- レシートモード（明細はメモ化し、合計のみ計算対象にする） （手動選択したカテゴリで一括保存） ---
+                    # --- 🌟 レシートモード ---
                     if mode == "レシート（合計1つ）":
                         purchases = []
                         total_amount = 0
                         temp_item_name = ""
+                    
+                        # レシート全体から「〇〇〇〇年〇月〇日」を探し出す
+                        receipt_date = None
+                        date_match = re.search(r'(\d{4})年\s*(\d{1,2})月\s*(\d{1,2})日', raw_text)
+                        if date_match:
+                            # 4月を「04」のように2桁に揃えて YYYY-MM-DD 形式を作る（zfillの魔法）
+                            yyyy = date_match.group(1)
+                            mm = date_match.group(2).zfill(2)
+                            dd = date_match.group(3).zfill(2)
+                            receipt_date = f"{yyyy}-{mm}-{dd}"
                     
                         for line in lines:
                             line = line.strip()
@@ -316,7 +326,7 @@ else:
                                 details_text = " / ".join([p["item"] for p in purchases])
                             
                                 # データベースには「1つの取引」として保存（金額は合計のみ）
-                                save_data(current_user, f"レシート: {details_text}", total_amount, receipt_category)
+                                save_data(current_user, f"レシート: {details_text}", total_amount, receipt_category, receipt_date)
                                 st.success(f"✅ {receipt_category} として記録しました！")
                                 st.info("✅ 明細をメモとして記録し、合計金額のみを支出として家計簿に追加しました。")
 
@@ -328,6 +338,7 @@ else:
                         transactions = []
                         store_names = [] # 店舗名だけを貯めるリスト
                         amounts = []     # 金額だけを貯めるリスト
+                        dates = []    # 日付を貯めるリスト
                         current_store_parts = [] # 店舗名の「パーツ」を一時的に貯める箱
                     
                         # 1行ずつ上から解析する
@@ -345,7 +356,12 @@ else:
                                 continue
                             
                             # ② 日付行の検出（ここが1つの取引の「店舗名の終わり」の合図）
-                            if re.search(r'\d{4}年\d{1,2}月\d{1,2}日', line):
+                            date_match = re.search(r'(\d{4})年\s*(\d{1,2})月\s*(\d{1,2})日', line)
+                            if date_match:
+                                yyyy = date_match.group(1)
+                                mm = date_match.group(2).zfill(2)
+                                dd = date_match.group(3).zfill(2)
+                                dates.append(f"{yyyy}-{mm}-{dd}") # リストに追加
                                 # 日付が来たら、それまでに貯めていたテキストを繋げて店舗名にする
                                 if current_store_parts:
                                     # 「G」などのアイコンの誤読（英語1文字）を除外して結合
@@ -377,7 +393,7 @@ else:
                             st.warning(f"⚠️ 店舗名({len(store_names)}件)と金額({len(amounts)}件)の数が一致しませんでした。推測で結合します。")
                     
                         for i in range(min_len):
-                            transactions.append({"item": store_names[i], "amount": amounts[i]})
+                            transactions.append({"date": dates[i], "item": store_names[i], "amount": amounts[i]})
 
                         # 結果の表示と保存
                         if transactions:
@@ -407,16 +423,17 @@ else:
                 store = t["item"]
                 amount = t["amount"]
                 current_cat = t["category"]
+                txn_date = t.get("date", "日付不明")
             
                 if current_cat == "未分類":
-                    st.warning(f"⚠️ 「{store}」({amount}円) は未登録です。")
+                    st.warning(f"⚠️ [{txn_date}] 「{store}」({amount}円) は未登録です。")
                     # ユーザーにカテゴリを選ばせる
                     new_cat = st.selectbox(f"「{store}」のグループ", CATEGORIES, key=f"cat_{i}")
                     t["category"] = new_cat
                     if new_cat == "未分類":
                         all_categorized = False # まだ未分類が残っている
                 else:
-                    st.info(f"✅ {store} ({amount}円) ➔ {current_cat} (自動分類)")
+                    st.info(f"✅ [{txn_date}] {store} ({amount}円) ➔ {current_cat} (自動分類)")
             
                 updated_transactions.append(t)
             
@@ -424,7 +441,7 @@ else:
             if st.button("データベースに保存して学習させる", disabled=not all_categorized):
                 for t in updated_transactions:
                     # 家計簿に保存
-                    save_data(current_user, t["item"], t["amount"], t["category"])
+                    save_data(current_user, t["item"], t["amount"], t["category"], t.get("date"))
                     # 辞書に学習させて、次回から自動分類させる
                     save_store_dict(current_user, t["item"], t["category"])
                 
