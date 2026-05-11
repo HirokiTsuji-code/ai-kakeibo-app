@@ -468,26 +468,31 @@ else:
         st.subheader("📈 支出履歴と分析")
         df_history = load_data(current_user)
     
+        # --- 🌟 新機能：SaaS風のサマリーダッシュボード ---
         if not df_history.empty:
-            # 日付を読みやすく変換
             df_history['date'] = pd.to_datetime(df_history['date'])
-            # 今月のデータだけを抽出
             current_month = datetime.now().month
             this_month_df = df_history[df_history['date'].dt.month == current_month]
-            this_month_amounts = pd.to_numeric(this_month_df['amount'], errors='coerce').fillna(0)
-        
-            total_this_month = int(this_month_amounts.sum())
-            remaining = allowable_expense - total_this_month
-        
-            # 状況メーター
-            st.metric("今月の総支出", f"{total_this_month:,} 円")
-            st.metric("今月の残り予算", f"{remaining:,} 円", delta=f"{remaining} 円")
-        
-            if remaining < 0:
-                st.error("⚠️ 予算オーバーです！貯金目標がピンチです。")
-        
-            st.write("直近の記録")
-            st.dataframe(df_history.tail(5), use_container_width=True)
+            
+            # 今月の支出合計を計算
+            total_spent_this_month = this_month_df['amount'].sum() if not this_month_df.empty else 0
+            
+            # 残りの使えるお金（サイドバーで設定した allowable_expense を使用）
+            remaining_budget = allowable_expense - total_spent_this_month
+            
+            # 3つのカラムを作って数値を並べる
+            st.divider()
+            col1, col2, col3 = st.columns(3)
+            
+            with col1:
+                st.metric(label="💰 今月の設定予算", value=f"¥ {int(allowable_expense):,}")
+            with col2:
+                st.metric(label="📉 今月の支出合計", value=f"¥ {int(total_spent_this_month):,}", delta="- 支出")
+            with col3:
+                # 残高がマイナスなら赤字、プラスなら通常の表示にする
+                delta_color = "normal" if remaining_budget >= 0 else "inverse"
+                st.metric(label="✨ 今月の残り使えるお金", value=f"¥ {int(remaining_budget):,}", delta=f"¥ {int(remaining_budget):,}", delta_color=delta_color)
+            
         else:
             st.info("データがまだありません。レシートを読み取ってください。")
 
